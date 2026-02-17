@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -9,12 +10,34 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 
-# Keep the bot token in an environment variable, e.g. BOT_TOKEN,
-# and pass it during startup: BOT_TOKEN=<your_token> python bot.py
-TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
-    raise RuntimeError("BOT_TOKEN is not set. Export it before starting the bot.")
 
+def load_token() -> str:
+    token = os.getenv("BOT_TOKEN")
+    if token:
+        return token
+
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            if key.strip() != "BOT_TOKEN":
+                continue
+
+            clean_value = value.strip().strip('"').strip("'")
+            if clean_value:
+                os.environ["BOT_TOKEN"] = clean_value
+                return clean_value
+
+    raise RuntimeError(
+        "BOT_TOKEN is not set. Add it to environment variables or create .env with BOT_TOKEN=<your_token>."
+    )
+
+
+TOKEN = load_token()
 dp = Dispatcher()
 
 language_keyboard = ReplyKeyboardMarkup(
@@ -25,6 +48,8 @@ language_keyboard = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True,
 )
+
+
 
 
 @dp.message(CommandStart())
